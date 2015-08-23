@@ -1,43 +1,54 @@
 package com.osahub.app.blood_cloud;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
+import com.osahub.app.blood_cloud.API.BloodAPI;
+import com.osahub.app.blood_cloud.Model.Bloodmodel;
+
+import retrofit.Callback;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+
 
 
 public class Login extends ActionBarActivity {
     final String LOG_TAG=Login.class.getSimpleName();
+    public static final String REG_ID = "regId";
+    public static final String EMAIL_ID = "eMailId";
+    Context applicationContext;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        Button button = (Button)findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                EditText email = (EditText) findViewById(R.id.editText);
-                EditText passward = (EditText) findViewById(R.id.editText2);
-                final String eMail = email.getText().toString().trim();
-                final String pass = passward.getText().toString();
-                LoginController loginController = new LoginController(eMail, pass);
-                loginController.execute();
-            }
-        });
+        SharedPreferences prefs = getSharedPreferences("UserDetails",
+                Context.MODE_PRIVATE);
+
+
+        String emailId = prefs.getString(EMAIL_ID, "");
+        applicationContext = getApplicationContext();
+
+
+        if (!TextUtils.isEmpty(emailId)) {
+            Intent i = new Intent(applicationContext, GCM.class);
+            i.putExtra("emailId", emailId);
+            startActivity(i);
+            finish();
+        }
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -46,6 +57,14 @@ public class Login extends ActionBarActivity {
         return true;
     }
 
+    public void Login(View view) {
+        EditText email = (EditText) findViewById(R.id.editText);
+        EditText passward = (EditText) findViewById(R.id.editText2);
+        final String eMail = email.getText().toString();
+        final String pass = passward.getText().toString();
+        LoginController loginController = new LoginController(eMail, pass);
+        loginController.execute();
+    }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -60,46 +79,66 @@ public class Login extends ActionBarActivity {
 
         return super.onOptionsItemSelected(item);
     }
-    protected class LoginController extends AsyncTask<Void,Void,Void> {
+
+
+     class LoginController extends AsyncTask<Void,Void,Void> {
 
 
         private final String LOG_TAG = LoginController.class.getSimpleName();
         private String email,pass;
+         RestAdapter restAdapter;
+
         LoginController(String email, String pass){
             this.email=email;
             this.pass=pass;
         }
+
+         @Override
+         protected void onPreExecute() {
+             super.onPreExecute();
+
+             restAdapter = new RestAdapter.Builder()
+                     .setEndpoint(ApplicationConstants.APP_SERVER_URL).build();
+         }
+
+
         @Override
         protected Void doInBackground(Void... voids) {
 
-            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
-            String url ="http://blood-cloud.appspot.com/login?eMail="+email+"&pass="+pass;
+
+            //create an adapter for retrofit with base url
             Log.v(LOG_TAG, "email " + email + pass);
-            // Request a string response from the provided URL.
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            if(response=="yes" ){
-                                Toast.makeText(getApplicationContext(), "Welcome", Toast.LENGTH_SHORT).show();
-                                Intent intent=new Intent(getApplicationContext(),Location.class);
-                                startActivity(intent);
-                            }
-                            else{
-                                Intent intent = new Intent(getApplicationContext(),Sorry.class).putExtra(Intent.EXTRA_TEXT,"Sorry,login agian with correct id and password");
-                                startActivity(intent);
-                            }
-                        }
-                    }, new Response.ErrorListener() {
+
+            BloodAPI bloodAPI  = restAdapter.create(BloodAPI.class);
+            Callback callback = new Callback() {
                 @Override
-                public void onErrorResponse(VolleyError error) {
+                public void success(Object o, retrofit.client.Response response) {
+                    Bloodmodel bloodmodel1 = (Bloodmodel) o;
+                    if (bloodmodel1.getAction().equals("yes")) {
+                        Log.v(LOG_TAG, "email " + email + pass);
+                        SharedPreferences prefs = getSharedPreferences("UserDetails",
+                                Context.MODE_PRIVATE);
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.putString(EMAIL_ID, email);
+                        editor.commit();
+                        Toast.makeText(getApplicationContext(), "Welcome", Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(getApplicationContext(), GCM.class);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(getApplicationContext(), "no response", Toast.LENGTH_SHORT).show();
+
+                    }
+                }
+
+                @Override
+                public void failure(RetrofitError error) {
 
                 }
-            });
-// Add the request to the RequestQueue.
-            queue.add(stringRequest);
+            };
+            bloodAPI.getBack(email,pass,callback);
             return null;
-
         }
+
     }
+
 }

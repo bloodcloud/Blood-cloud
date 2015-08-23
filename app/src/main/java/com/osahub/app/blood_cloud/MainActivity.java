@@ -32,7 +32,7 @@ public class MainActivity extends ActionBarActivity {
         });
         button2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                Intent intent = new Intent(getApplicationContext(),RegisterActivity.class);
+                Intent intent = new Intent(getApplicationContext(),GCM.class);
                 startActivity(intent);
             }
         });

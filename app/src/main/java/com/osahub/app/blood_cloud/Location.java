@@ -1,24 +1,16 @@
 package com.osahub.app.blood_cloud;
 
 import android.content.Intent;
-
-import android.os.AsyncTask;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -38,6 +30,7 @@ public class Location extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,LocationListener {
     final String LOG_TAG=Location.class.getSimpleName();
+    public static final String EMAIL_ID = "eMailId";
 
     private static final String TAG = "LocationActivity";
     private static final long INTERVAL = 1000 * 60 * 30; //30 minute
@@ -74,7 +67,21 @@ public class Location extends ActionBarActivity implements
                 .build();
 
         setContentView(R.layout.activity_location);
-
+        Button button=(Button)findViewById(R.id.button5);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                SharedPreferences pref;
+                SharedPreferences.Editor editor;
+                pref = getApplicationContext().getSharedPreferences("UserDetails", 0);
+                editor = pref.edit();
+                editor.clear();
+                //editor.remove(EMAIL_ID);
+                editor.commit();
+                Intent intent= new Intent(getApplicationContext(),Login.class);
+                startActivity(intent);
+            }
+        });
     }
     @Override
     public void onStart() {
@@ -127,8 +134,8 @@ public class Location extends ActionBarActivity implements
         mLatitudeText.setText(String.valueOf(mCurrentLocation.getLatitude()));
 
         mLongitudeText.setText(String.valueOf(mCurrentLocation.getLongitude()));
-        SendLoc sendLoc= new SendLoc(mCurrentLocation);
-        sendLoc.execute();
+        //SendLoc sendLoc= new SendLoc(mCurrentLocation);
+        //sendLoc.execute();
     }
 
 
@@ -181,45 +188,5 @@ public class Location extends ActionBarActivity implements
         mGoogleApiClient.disconnect();
         Log.d(TAG, "isConnected ...............: " + mGoogleApiClient.isConnected());
     }
-    protected class SendLoc extends AsyncTask<Void,Void,Void>
-    {
-        android.location.Location loc=null;
-        SendLoc(android.location.Location loc)
-        {
-            this.loc=loc;
-        }
-        @Override
-        protected Void doInBackground(Void... voids) {
-            RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
-            String latitude,lognitude;
-            lognitude=String.valueOf(loc.getLongitude());
-            latitude=String.valueOf(loc.getLatitude());
-            String url ="http://blood-cloud.appspot.com/location?latitude="+latitude+"&longitude="+lognitude;
-            Log.v(LOG_TAG, "loc "+latitude + lognitude);
-            // Request a string response from the provided URL.
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            if(response=="yes" ){
-                                Toast.makeText(getApplicationContext(), "Welcome", Toast.LENGTH_SHORT).show();
-                                Intent intent=new Intent(getApplicationContext(),Location.class);
-                                startActivity(intent);
-                            }
-                            else{
-                                Intent intent = new Intent(getApplicationContext(),Sorry.class).putExtra(Intent.EXTRA_TEXT,"Sorry,location not sent agian with correct id and password");
-                                startActivity(intent);
-                            }
-                        }
-                    }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
 
-                }
-            });
-// Add the request to the RequestQueue.
-            queue.add(stringRequest);
-            return null;
-        }
-    }
 }
